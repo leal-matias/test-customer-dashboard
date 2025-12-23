@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import { GetServerSideProps } from "next";
 import {
   Card,
   Page,
@@ -18,71 +18,83 @@ interface Customer {
   email: string;
 }
 
-export default function Dashboard() {
-  const router = useRouter();
+interface PageProps {
+  shopifyParams: {
+    shop?: string;
+    logged_in_customer_id?: string;
+    signature?: string;
+    timestamp?: string;
+    path_prefix?: string;
+    host?: string;
+    embedded?: string;
+  };
+  allParams: Record<string, string | string[] | undefined>;
+}
+
+export const getServerSideProps: GetServerSideProps<PageProps> = async (context) => {
+  const { query } = context;
+  
+  // Log en el servidor para debug
+  console.log("=== SERVER SIDE PARAMS ===");
+  console.log("All query params:", query);
+  console.log("==========================");
+
+  return {
+    props: {
+      shopifyParams: {
+        shop: (query.shop as string) || undefined,
+        logged_in_customer_id: (query.logged_in_customer_id as string) || undefined,
+        signature: (query.signature as string) || undefined,
+        timestamp: (query.timestamp as string) || undefined,
+        path_prefix: (query.path_prefix as string) || undefined,
+        host: (query.host as string) || undefined,
+        embedded: (query.embedded as string) || undefined,
+      },
+      allParams: query as Record<string, string | string[] | undefined>,
+    },
+  };
+};
+
+export default function Dashboard({ shopifyParams, allParams }: PageProps) {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
+
+  const debugInfo = JSON.stringify(
+    {
+      shopifyParams,
+      allParams,
+    },
+    null,
+    2
+  );
 
   useEffect(() => {
-    // Esperar a que el router esté listo
-    if (!router.isReady) return;
+    const { shop, logged_in_customer_id, host } = shopifyParams;
 
-    // Console log TODOS los parámetros
-    console.log("=== ROUTER DEBUG ===");
-    console.log("router.query:", router.query);
-    console.log("router.asPath:", router.asPath);
-    console.log(
-      "window.location:",
-      typeof window !== "undefined" ? window.location.href : "SSR"
-    );
-    console.log("All query keys:", Object.keys(router.query));
-    console.log("===================");
-
-    // Obtener parámetros - App Proxy pasa diferentes params
-    const {
-      shop,
-      host,
-      logged_in_customer_id,
-      signature,
-      path_prefix,
-      timestamp,
-    } = router.query;
-
-    // Debug info
-    setDebugInfo(
-      JSON.stringify(
-        {
-          shop,
-          host,
-          logged_in_customer_id,
-          hasSignature: !!signature,
-          path_prefix,
-          timestamp,
-          fullQuery: router.query,
-        },
-        null,
-        2
-      )
-    );
+    console.log("=== CLIENT DEBUG ===");
+    console.log("shopifyParams:", shopifyParams);
+    console.log("allParams:", allParams);
+    console.log("====================");
 
     // Para App Proxy, usar logged_in_customer_id
     if (logged_in_customer_id && shop) {
-      fetchCustomerData(shop as string, logged_in_customer_id as string);
+      fetchCustomerData(shop, logged_in_customer_id);
     }
     // Para apps embebidas en admin, usar shop y host
     else if (shop && host) {
-      fetchCustomerData(shop as string);
+      fetchCustomerData(shop);
     }
     // Sin parámetros válidos
     else {
       setLoading(false);
-      setError(
-        "No se detectaron parámetros de Shopify. Asegúrate de acceder desde tu tienda Shopify."
-      );
+      if (!shop) {
+        setError("No se detectó el parámetro 'shop'. Asegúrate de acceder desde tu tienda Shopify.");
+      } else {
+        setError("No se detectó sesión de customer. Asegúrate de estar logueado en la tienda.");
+      }
     }
-  }, [router.isReady, router.query]);
+  }, [shopifyParams]);
 
   const fetchCustomerData = async (shop: string, customerId?: string) => {
     try {
@@ -110,6 +122,9 @@ export default function Dashboard() {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
         <p>Loading customer dashboard...</p>
+        <pre style={{ fontSize: "10px", textAlign: "left", maxWidth: "600px", margin: "20px auto" }}>
+          {debugInfo}
+        </pre>
       </div>
     );
   }
@@ -161,7 +176,7 @@ export default function Dashboard() {
             <Box padding="400">
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h3">
-                  Debug Info
+                  Debug Info (Server Params)
                 </Text>
                 <pre
                   style={{
@@ -169,7 +184,7 @@ export default function Dashboard() {
                     background: "#f4f4f4",
                     padding: "10px",
                     overflow: "auto",
-                    maxHeight: "200px",
+                    maxHeight: "300px",
                   }}
                 >
                   {debugInfo}
