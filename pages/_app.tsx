@@ -1,14 +1,13 @@
+import { AppProvider } from "@shopify/polaris";
+import "@shopify/polaris/build/esm/styles.css";
+import translations from "@shopify/polaris/locales/en.json";
 import type { AppProps } from "next/app";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import "../src/index.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <>
+    <AppProvider i18n={translations}>
       <Component {...pageProps} />
-      <ToastContainer />
-    </>
+    </AppProvider>
   );
 }
 
