@@ -31,9 +31,11 @@ interface PageProps {
   allParams: Record<string, string | string[] | undefined>;
 }
 
-export const getServerSideProps: GetServerSideProps<PageProps> = async (context) => {
+export const getServerSideProps: GetServerSideProps<PageProps> = async (
+  context
+) => {
   const { query } = context;
-  
+
   // Log en el servidor para debug
   console.log("=== SERVER SIDE PARAMS ===");
   console.log("All query params:", query);
@@ -43,7 +45,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (context)
     props: {
       shopifyParams: {
         shop: (query.shop as string) || undefined,
-        logged_in_customer_id: (query.logged_in_customer_id as string) || undefined,
+        logged_in_customer_id:
+          (query.logged_in_customer_id as string) || undefined,
         signature: (query.signature as string) || undefined,
         timestamp: (query.timestamp as string) || undefined,
         path_prefix: (query.path_prefix as string) || undefined,
@@ -89,20 +92,27 @@ export default function Dashboard({ shopifyParams, allParams }: PageProps) {
     else {
       setLoading(false);
       if (!shop) {
-        setError("No se detectó el parámetro 'shop'. Asegúrate de acceder desde tu tienda Shopify.");
+        setError(
+          "No se detectó el parámetro 'shop'. Asegúrate de acceder desde tu tienda Shopify."
+        );
       } else {
-        setError("No se detectó sesión de customer. Asegúrate de estar logueado en la tienda.");
+        setError(
+          "No se detectó sesión de customer. Asegúrate de estar logueado en la tienda."
+        );
       }
     }
   }, [shopifyParams]);
 
   const fetchCustomerData = async (shop: string, customerId?: string) => {
     try {
-      let url = `/api/customer-session?shop=${shop}`;
+      // Usar URL absoluta de Amplify para evitar que vaya al dominio de Shopify
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+      let url = `${baseUrl}/api/customer-session?shop=${shop}`;
       if (customerId) {
         url += `&customer_id=${customerId}`;
       }
 
+      console.log("Fetching from:", url);
       const response = await fetch(url);
       const data = await response.json();
 
@@ -122,7 +132,14 @@ export default function Dashboard({ shopifyParams, allParams }: PageProps) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
         <p>Loading customer dashboard...</p>
-        <pre style={{ fontSize: "10px", textAlign: "left", maxWidth: "600px", margin: "20px auto" }}>
+        <pre
+          style={{
+            fontSize: "10px",
+            textAlign: "left",
+            maxWidth: "600px",
+            margin: "20px auto",
+          }}
+        >
           {debugInfo}
         </pre>
       </div>
