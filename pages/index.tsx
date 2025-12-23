@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Card, Page, Layout, BlockStack, Text, Box, Banner } from "@shopify/polaris";
+import {
+  Card,
+  Page,
+  Layout,
+  BlockStack,
+  Text,
+  Box,
+  Banner,
+} from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 
 interface Customer {
@@ -21,39 +29,55 @@ export default function Dashboard() {
     // Esperar a que el router esté listo
     if (!router.isReady) return;
 
-    // Obtener parámetros - App Proxy pasa diferentes params
-    const { 
-      shop, 
-      host, 
-      logged_in_customer_id,
-      signature,
-      path_prefix,
-      timestamp
-    } = router.query;
+    // Console log TODOS los parámetros
+    console.log("=== ROUTER DEBUG ===");
+    console.log("router.query:", router.query);
+    console.log("router.asPath:", router.asPath);
+    console.log("window.location:", typeof window !== "undefined" ? window.location.href : "SSR");
+    console.log("All query keys:", Object.keys(router.query));
+    console.log("===================");
 
-    // Debug info
-    setDebugInfo(JSON.stringify({
+    // Obtener parámetros - App Proxy pasa diferentes params
+    const {
       shop,
       host,
       logged_in_customer_id,
-      hasSignature: !!signature,
+      signature,
       path_prefix,
       timestamp,
-      fullQuery: router.query
-    }, null, 2));
+    } = router.query;
+
+    // Debug info
+    setDebugInfo(
+      JSON.stringify(
+        {
+          shop,
+          host,
+          logged_in_customer_id,
+          hasSignature: !!signature,
+          path_prefix,
+          timestamp,
+          fullQuery: router.query,
+        },
+        null,
+        2
+      )
+    );
 
     // Para App Proxy, usar logged_in_customer_id
     if (logged_in_customer_id && shop) {
       fetchCustomerData(shop as string, logged_in_customer_id as string);
-    } 
+    }
     // Para apps embebidas en admin, usar shop y host
     else if (shop && host) {
       fetchCustomerData(shop as string);
-    } 
+    }
     // Sin parámetros válidos
     else {
       setLoading(false);
-      setError("No se detectaron parámetros de Shopify. Asegúrate de acceder desde tu tienda Shopify.");
+      setError(
+        "No se detectaron parámetros de Shopify. Asegúrate de acceder desde tu tienda Shopify."
+      );
     }
   }, [router.isReady, router.query]);
 
@@ -63,7 +87,7 @@ export default function Dashboard() {
       if (customerId) {
         url += `&customer_id=${customerId}`;
       }
-      
+
       const response = await fetch(url);
       const data = await response.json();
 
@@ -136,13 +160,15 @@ export default function Dashboard() {
                 <Text variant="headingMd" as="h3">
                   Debug Info
                 </Text>
-                <pre style={{ 
-                  fontSize: "10px", 
-                  background: "#f4f4f4", 
-                  padding: "10px",
-                  overflow: "auto",
-                  maxHeight: "200px"
-                }}>
+                <pre
+                  style={{
+                    fontSize: "10px",
+                    background: "#f4f4f4",
+                    padding: "10px",
+                    overflow: "auto",
+                    maxHeight: "200px",
+                  }}
+                >
                   {debugInfo}
                 </pre>
               </BlockStack>
