@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { Card, Page, Layout, BlockStack, Text, Box } from "@shopify/polaris";
+import { Card, Page, Layout, BlockStack, Text, Box, Banner } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 
 interface Customer {
@@ -15,18 +15,56 @@ export default function Dashboard() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   useEffect(() => {
-    const { shop, host } = router.query;
+    // Esperar a que el router esté listo
+    if (!router.isReady) return;
 
-    if (shop && host) {
+    // Obtener parámetros - App Proxy pasa diferentes params
+    const { 
+      shop, 
+      host, 
+      logged_in_customer_id,
+      signature,
+      path_prefix,
+      timestamp
+    } = router.query;
+
+    // Debug info
+    setDebugInfo(JSON.stringify({
+      shop,
+      host,
+      logged_in_customer_id,
+      hasSignature: !!signature,
+      path_prefix,
+      timestamp,
+      fullQuery: router.query
+    }, null, 2));
+
+    // Para App Proxy, usar logged_in_customer_id
+    if (logged_in_customer_id && shop) {
+      fetchCustomerData(shop as string, logged_in_customer_id as string);
+    } 
+    // Para apps embebidas en admin, usar shop y host
+    else if (shop && host) {
       fetchCustomerData(shop as string);
+    } 
+    // Sin parámetros válidos
+    else {
+      setLoading(false);
+      setError("No se detectaron parámetros de Shopify. Asegúrate de acceder desde tu tienda Shopify.");
     }
-  }, [router.query]);
+  }, [router.isReady, router.query]);
 
-  const fetchCustomerData = async (shop: string) => {
+  const fetchCustomerData = async (shop: string, customerId?: string) => {
     try {
-      const response = await fetch(`/api/customer-session?shop=${shop}`);
+      let url = `/api/customer-session?shop=${shop}`;
+      if (customerId) {
+        url += `&customer_id=${customerId}`;
+      }
+      
+      const response = await fetch(url);
       const data = await response.json();
 
       if (response.ok) {
@@ -44,15 +82,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
-        Loading customer dashboard...
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ padding: "50px", textAlign: "center", color: "red" }}>
-        Error: {error}
+        <p>Loading customer dashboard...</p>
       </div>
     );
   }
@@ -60,6 +90,14 @@ export default function Dashboard() {
   return (
     <Page title="My Customer Dashboard">
       <Layout>
+        {error && (
+          <Layout.Section>
+            <Banner tone="warning">
+              <p>{error}</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         <Layout.Section>
           <Card>
             <Box padding="400">
@@ -96,16 +134,17 @@ export default function Dashboard() {
             <Box padding="400">
               <BlockStack gap="400">
                 <Text variant="headingMd" as="h3">
-                  Recent Activity
+                  Debug Info
                 </Text>
-                <Text as="p">This is your customer-facing dashboard.</Text>
-                <Text as="p">Future features could include:</Text>
-                <ul>
-                  <li>Order history</li>
-                  <li>Subscription management</li>
-                  <li>Account settings</li>
-                  <li>Loyalty points</li>
-                </ul>
+                <pre style={{ 
+                  fontSize: "10px", 
+                  background: "#f4f4f4", 
+                  padding: "10px",
+                  overflow: "auto",
+                  maxHeight: "200px"
+                }}>
+                  {debugInfo}
+                </pre>
               </BlockStack>
             </Box>
           </Card>
