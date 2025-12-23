@@ -33,7 +33,10 @@ export default function Dashboard() {
     console.log("=== ROUTER DEBUG ===");
     console.log("router.query:", router.query);
     console.log("router.asPath:", router.asPath);
-    console.log("window.location:", typeof window !== "undefined" ? window.location.href : "SSR");
+    console.log(
+      "window.location:",
+      typeof window !== "undefined" ? window.location.href : "SSR"
+    );
     console.log("All query keys:", Object.keys(router.query));
     console.log("===================");
 
