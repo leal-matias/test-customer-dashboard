@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  
+  /* Culto color palette */
+  --color-culto-bg: #F5F2EE;
+  --color-culto-card: #FFFFFF;
+  --color-culto-text: #111111;
+  --color-culto-muted: #807A70;
+  --color-culto-subtle: #5C574F;
+  --color-culto-label: #9A9388;
+  --color-culto-helper: #8B8478;
+  --color-culto-border: #E0DED9;
+  --color-culto-border-light: #DAD4C8;
+  --color-culto-divider: #F0EDE8;
+  --color-culto-disabled: #C4C0B9;
+  --color-culto-success: #D1FAE5;
+  --color-culto-accent: #3B82F6;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background: var(--color-culto-bg);
+  color: var(--color-culto-text);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
