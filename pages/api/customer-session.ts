@@ -1,4 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
+import fs from 'fs';
+import path from 'path';
 
 interface CustomerQueryResponse {
   data?: {
@@ -11,6 +13,38 @@ interface CustomerQueryResponse {
     };
   };
   errors?: Array<{ message: string }>;
+}
+
+// Función para obtener variables de entorno (con fallback a archivo)
+function getEnvVar(name: string): string | undefined {
+  // Primero intentar desde process.env
+  if (process.env[name]) {
+    return process.env[name];
+  }
+  
+  // Fallback: intentar leer desde archivo .env.production
+  try {
+    const envPaths = [
+      path.join(process.cwd(), '.env.production'),
+      path.join(process.cwd(), '.next', '.env.production'),
+      '/var/task/.env.production',
+      '/var/task/.next/.env.production',
+    ];
+    
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        const content = fs.readFileSync(envPath, 'utf-8');
+        const match = content.match(new RegExp(`^${name}=(.*)$`, 'm'));
+        if (match) {
+          return match[1];
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Error reading env file:', e);
+  }
+  
+  return undefined;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -27,13 +61,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const shop = req.query.shop as string;
     const customerId = req.query.customer_id as string;
 
+    // Obtener variables de entorno
+    const accessToken = getEnvVar('SHOPIFY_ACCESS_TOKEN');
+    const apiKey = getEnvVar('SHOPIFY_API_KEY');
+    const apiSecret = getEnvVar('SHOPIFY_API_SECRET');
+
     // Debug: verificar variables de entorno
     const envCheck = {
-      hasApiKey: !!process.env.SHOPIFY_API_KEY,
-      hasApiSecret: !!process.env.SHOPIFY_API_SECRET,
-      hasAccessToken: !!process.env.SHOPIFY_ACCESS_TOKEN,
+      hasApiKey: !!apiKey,
+      hasApiSecret: !!apiSecret,
+      hasAccessToken: !!accessToken,
+      accessTokenPreview: accessToken ? `${accessToken.substring(0, 10)}...` : 'MISSING',
       shop,
       customerId,
+      cwd: process.cwd(),
     };
     console.log("Environment check:", envCheck);
 
@@ -46,7 +87,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Verificar que tenemos el access token
-    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
     if (!accessToken) {
       return res.status(500).json({ 
         error: 'Missing SHOPIFY_ACCESS_TOKEN environment variable',

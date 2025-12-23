@@ -116,7 +116,7 @@ export default function Dashboard({ shopifyParams, allParams }: PageProps) {
       console.log("Fetching from:", url);
       const response = await fetch(url);
       const data = await response.json();
-      
+
       // Guardar respuesta completa para debug
       setApiResponse({
         status: response.status,
@@ -133,7 +133,10 @@ export default function Dashboard({ shopifyParams, allParams }: PageProps) {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Unknown error";
-      setApiResponse({ error: errorMessage, stack: err instanceof Error ? err.stack : undefined });
+      setApiResponse({
+        error: errorMessage,
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       setError(`Network error: ${errorMessage}`);
     } finally {
       setLoading(false);
@@ -218,20 +221,26 @@ export default function Dashboard({ shopifyParams, allParams }: PageProps) {
                 >
                   {debugInfo}
                 </pre>
-                
+
                 <Text variant="headingMd" as="h3">
                   API Response
                 </Text>
                 <pre
                   style={{
                     fontSize: "10px",
-                    background: apiResponse && (apiResponse as {status?: number}).status !== 200 ? "#ffe0e0" : "#e0ffe0",
+                    background:
+                      apiResponse &&
+                      (apiResponse as { status?: number }).status !== 200
+                        ? "#ffe0e0"
+                        : "#e0ffe0",
                     padding: "10px",
                     overflow: "auto",
                     maxHeight: "300px",
                   }}
                 >
-                  {apiResponse ? JSON.stringify(apiResponse, null, 2) : "No API call yet"}
+                  {apiResponse
+                    ? JSON.stringify(apiResponse, null, 2)
+                    : "No API call yet"}
                 </pre>
               </BlockStack>
             </Box>

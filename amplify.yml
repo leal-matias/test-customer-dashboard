@@ -6,7 +6,20 @@ frontend:
         - npm ci
     build:
       commands:
+        # Crear archivo de configuración con las variables de entorno
+        - echo "Creating runtime config..."
+        - |
+          cat <<EOF > .env.production
+          SHOPIFY_ACCESS_TOKEN=$SHOPIFY_ACCESS_TOKEN
+          SHOPIFY_API_KEY=$SHOPIFY_API_KEY
+          SHOPIFY_API_SECRET=$SHOPIFY_API_SECRET
+          NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+          EOF
+        - cat .env.production
+        # Build
         - npm run build
+        # Copiar .env al output para que esté disponible en runtime
+        - cp .env.production .next/.env.production
   artifacts:
     baseDirectory: .next
     files:
