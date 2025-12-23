@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { shopify } from '../../lib/shopify-config';
 
 interface CustomerQueryResponse {
   data?: {
@@ -11,86 +10,103 @@ interface CustomerQueryResponse {
       phone: string;
     };
   };
+  errors?: Array<{ message: string }>;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  // Agregar CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
     const shop = req.query.shop as string;
     const customerId = req.query.customer_id as string;
 
+    // Debug: verificar variables de entorno
+    const envCheck = {
+      hasApiKey: !!process.env.SHOPIFY_API_KEY,
+      hasApiSecret: !!process.env.SHOPIFY_API_SECRET,
+      hasAccessToken: !!process.env.SHOPIFY_ACCESS_TOKEN,
+      shop,
+      customerId,
+    };
+    console.log("Environment check:", envCheck);
+
     if (!shop) {
-      return res.status(400).json({ error: 'Missing shop parameter' });
+      return res.status(400).json({ error: 'Missing shop parameter', envCheck });
     }
 
-    // Para App Proxy con logged_in_customer_id
-    if (customerId) {
-      const session = await shopify.session.customAppSession(shop);
-      const client = new shopify.clients.Graphql({ session });
-      
-      // Usar Admin API para obtener datos del customer por ID
-      const response = await client.query({
-        data: `{
-          customer(id: "gid://shopify/Customer/${customerId}") {
-            id
-            firstName
-            lastName
-            email
-            phone
-          }
-        }`,
-      });
+    if (!customerId) {
+      return res.status(400).json({ error: 'Missing customer_id parameter', envCheck });
+    }
 
-      const customer = (response.body as unknown as CustomerQueryResponse)?.data?.customer;
-      
-      if (!customer) {
-        return res.status(404).json({ error: 'Customer not found' });
+    // Verificar que tenemos el access token
+    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    if (!accessToken) {
+      return res.status(500).json({ 
+        error: 'Missing SHOPIFY_ACCESS_TOKEN environment variable',
+        envCheck
+      });
+    }
+
+    // Usar fetch directo a la Admin API de Shopify
+    const graphqlEndpoint = `https://${shop}/admin/api/2024-01/graphql.json`;
+    
+    const query = `{
+      customer(id: "gid://shopify/Customer/${customerId}") {
+        id
+        firstName
+        lastName
+        email
+        phone
       }
+    }`;
 
-      return res.status(200).json({ customer });
-    }
-
-    // Para apps embebidas con customer session token
-    const customerSessionId = req.headers['x-shopify-customer-session-id'];
+    console.log("Making request to:", graphqlEndpoint);
     
-    if (!customerSessionId) {
-      return res.status(401).json({ 
-        error: 'No customer session. Make sure you are logged in.',
-        debug: {
-          hasCustomerId: !!customerId,
-          hasSessionHeader: !!customerSessionId,
-          shop
-        }
-      });
-    }
-
-    const session = await shopify.session.customAppSession(shop);
-    const client = new shopify.clients.Graphql({ session });
-    
-    // Query customer information usando Storefront API
-    const response = await client.query({
-      data: `{
-        customer(customerAccessToken: "${customerSessionId}") {
-          id
-          firstName
-          lastName
-          email
-          phone
-        }
-      }`,
+    const response = await fetch(graphqlEndpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({ query }),
     });
 
-    const customer = (response.body as unknown as CustomerQueryResponse)?.data?.customer;
+    const data: CustomerQueryResponse = await response.json();
     
-    if (!customer) {
-      return res.status(401).json({ error: 'Invalid customer session' });
+    console.log("Shopify response:", JSON.stringify(data, null, 2));
+
+    if (data.errors) {
+      return res.status(400).json({ 
+        error: 'GraphQL errors', 
+        details: data.errors 
+      });
     }
 
-    res.status(200).json({ customer });
+    const customer = data?.data?.customer;
+    
+    if (!customer) {
+      return res.status(404).json({ 
+        error: 'Customer not found',
+        customerId,
+        response: data
+      });
+    }
+
+    return res.status(200).json({ customer });
+
   } catch (error) {
     console.error('Customer session error:', error);
-    res.status(500).json({ 
-      error: 'Failed to verify customer session',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    return res.status(500).json({ 
+      error: 'Failed to fetch customer data',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
     });
   }
 }
